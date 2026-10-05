@@ -10,7 +10,7 @@ This is a work sample on synthetic data. It shows how I review an app that was p
 
 ## What this sample shows
 
-- **The app.** Cedar Supply Portal is a small multi-tenant ordering app: organisation sign-up, product list, cart, Stripe Checkout, order history, invoice download, an admin page and an import-from-URL feature.
+- **The app.** Cedar Supply Portal is a small multi-tenant ordering app: organization sign-up, product list, cart, Stripe Checkout, order history, invoice download, an admin page and an import-from-URL feature.
 - **The old code.** The tag `v0-as-shipped` is the app as a fast AI-assisted build might ship it, with ten seeded flaws (F01 to F10).
 - **The proof.** Each flaw has an exploit test in `tests/exploits/`. It fails on `v0-as-shipped` and passes on `main`. The CI jobs `exploits-v0` and `exploits-main` check both directions on every push, so a flaw that returns breaks the build.
 - **The fixes.** One commit per finding on `main`, so you can read each change on its own.
@@ -23,7 +23,7 @@ This is a work sample on synthetic data. It shows how I review an app that was p
 | F03 | Stripe webhook accepts unsigned events | High |
 | F05 | Price taken from the browser | High |
 | F07 | Import from URL reaches internal addresses (SSRF) | High |
-| F04 | Webhook not idempotent, replay fulfils twice | Medium |
+| F04 | Webhook not idempotent, replay fulfills twice | Medium |
 | F06 | Invoice download without an ownership check (IDOR) | Medium |
 | F08 | Stored script injection through product notes | Medium |
 | F09 | Errors return stack traces and SQL | Low |
@@ -80,7 +80,7 @@ A note on how the exploit suite stays honest. A test only counts as a detection 
 ## Design decisions
 
 - **The database enforces tenancy.** Row level security is the rule, and the app's own filters are a second layer. F01 shows what happens when only the app filters.
-- **One transaction for fulfilment.** A Postgres function records the event id and fulfils the order together. A crash between the two cannot lose an order or duplicate one.
+- **One transaction for fulfillment.** A Postgres function records the event id and fulfills the order together. A crash between the two cannot lose an order or duplicate one.
 - **A guarded connection for outbound fetches.** The import feature checks the address when it connects, not only when it parses the URL, so a name that resolves to a private address is refused too.
 - **Exploit tests drive the real thing.** HTTP calls, a real database and a real browser for the two cases that need one.
 - **The content security policy still allows inline scripts.** Next.js needs them until the app moves to nonces. It is listed as unfinished in the report.

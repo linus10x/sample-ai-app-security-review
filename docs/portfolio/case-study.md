@@ -2,7 +2,7 @@
 
 *Sample on synthetic data*
 
-## The problem
+## The problem (example client brief)
 
 Our B2B ordering app was built with Claude Code over several months. Before real card and customer data goes in, we need an independent senior engineer to review the code, give us a written report ranked by severity, and then help with the cleanup.
 

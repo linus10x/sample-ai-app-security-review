@@ -1,6 +1,6 @@
 # Architecture
 
-Cedar Supply Portal is a small multi-tenant ordering app. Each customer is an organisation, and a person belongs to exactly one.
+Cedar Supply Portal is a small multi-tenant ordering app. Each customer is an organization, and a person belongs to exactly one.
 
 ```mermaid
 flowchart LR
@@ -34,4 +34,4 @@ flowchart LR
 
 ## Data model
 
-`orgs`, `profiles` (user to organisation and role), `products` (shared catalogue with a Stripe Price id), `product_notes`, `orders`, `order_items`, `invoices`, `shipments`, and, after F04, `processed_events`. The migrations in `supabase/migrations` are the source of truth. The old schema is the first file, and each fix that needs a database change adds its own file.
+`orgs`, `profiles` (user to organization and role), `products` (shared catalog with a Stripe Price id), `product_notes`, `orders`, `order_items`, `invoices`, `shipments`, and, after F04, `processed_events`. The migrations in `supabase/migrations` are the source of truth. The old schema is the first file, and each fix that needs a database change adds its own file.

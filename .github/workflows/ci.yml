@@ -29,7 +29,7 @@ jobs:
       - run: npm run lint
       - name: Unit tests with the 80 percent line coverage gate
         run: npm run test:coverage
-      - name: Summarise
+      - name: Summarize
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
@@ -65,7 +65,7 @@ jobs:
             --exclude node_modules --exclude .next --metrics=off --severity ERROR --error \
             --sarif --output semgrep.sarif
       - name: gitleaks over full history
-        run: docker run --rm -v "$PWD":/repo zricethezav/gitleaks:latest detect --source /repo --log-opts="--all" --redact --no-banner
+        run: docker run --rm -v "$PWD":/repo zricethezav/gitleaks:v8.30.1 detect --source /repo --log-opts="--all" --redact --no-banner
       - name: osv-scanner (fails on high or critical)
         run: |
           mkdir -p out

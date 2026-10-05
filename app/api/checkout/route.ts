@@ -56,6 +56,11 @@ export const POST = withApi(async (req) => {
     line_items: priced.lines.map((l) => ({ price: l.stripe_price_id, quantity: l.quantity })),
   });
 
-  await createAdminClient().from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
+  const { error: sessionErr } = await createAdminClient()
+    .from("orders")
+    .update({ stripe_session_id: session.id })
+    .eq("id", order.id);
+  if (sessionErr) throw dbError(sessionErr, "update orders set stripe_session_id = ... where id = ...");
+
   return NextResponse.json({ orderId: order.id, url: session.url });
 });

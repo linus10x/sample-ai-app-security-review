@@ -110,7 +110,6 @@ port = 54324
 # Uncomment to expose additional ports for testing user applications that send emails.
 # smtp_port = 54325
 # pop3_port = 54326
-# admin_email = "admin@email.com"
 # sender_name = "Admin"
 
 [storage]
@@ -234,14 +233,12 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true
 # host = "smtp.sendgrid.net"
 # port = 587
 # user = "apikey"
 # pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
 # sender_name = "Admin"
 
 # Uncomment to customize email template
@@ -375,8 +372,6 @@ allow_dynamic_registration = false
 [edge_runtime]
 enabled = false
 # Supported request policies: `oneshot`, `per_worker`.
-# `per_worker` (default) — enables hot reload during local development.
-# `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
 policy = "per_worker"
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083

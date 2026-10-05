@@ -10,12 +10,12 @@ I seeded ten flaws into the app as first shipped (tag `v0-as-shipped`), wrote an
 
 | ID | Finding | Severity | Status |
 |---|---|---|---|
-| F01 | Orders readable across organisations | High | Fixed, retest passed |
+| F01 | Orders readable across organizations | High | Fixed, retest passed |
 | F02 | Service role key in the browser bundle | High | Fixed, retest passed |
 | F03 | Stripe webhook accepts unsigned events | High | Fixed, retest passed |
 | F05 | Prices taken from the browser | High | Fixed, retest passed |
 | F07 | Import from URL reaches internal addresses | High | Fixed, retest passed |
-| F04 | Replayed webhook fulfils twice | Medium | Fixed, retest passed |
+| F04 | Replayed webhook fulfills twice | Medium | Fixed, retest passed |
 | F06 | Invoice download has no ownership check | Medium | Fixed, retest passed |
 | F08 | Stored script injection in product notes | Medium | Fixed, retest passed |
 | F09 | Errors return stack traces and SQL | Low | Fixed, retest passed |
@@ -25,14 +25,14 @@ Severity here means the damage if someone found the flaw on a live system holdin
 
 ## Findings, ranked by severity
 
-### F01. Orders readable across organisations (High)
+### F01. Orders readable across organizations (High)
 
-- **Why High:** any signed-in user could read every organisation's orders straight from the database API.
+- **Why High:** any signed-in user could read every organization's orders straight from the database API.
 - **Where (v0):** `supabase/migrations/20261001000000_init.sql:83`, `alter table public.orders disable row level security`.
 - **Reproduce:** `tests/exploits/f01-rls-orders.test.ts`. It signs in as a Harbor user and asks for all orders.
-- **Fix:** commit `9a530f4`. Row level security is on, with a select policy and an insert policy scoped to the caller's organisation. Access for the anonymous role is revoked. A pgTAP test (`supabase/tests/f01_orders_rls.test.sql`) covers the policies at the database level.
+- **Fix:** commit `9a530f4`. Row level security is on, with a select policy and an insert policy scoped to the caller's organization. Access for the anonymous role is revoked. A pgTAP test (`supabase/tests/f01_orders_rls.test.sql`) covers the policies at the database level.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
-- **In plain words:** the app filtered orders by organisation in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.
+- **In plain words:** the app filtered orders by organization in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.
 
 ### F02. Service role key in the browser bundle (High)
 
@@ -56,7 +56,7 @@ Severity here means the damage if someone found the flaw on a live system holdin
 
 - **Why High:** a shopper could pay any amount for any item.
 - **Where (v0):** `app/api/checkout/route.ts:23`, the order total is built from `unitAmount` in the request body, and the same value goes to Stripe.
-- **Reproduce:** `tests/exploits/f05-client-price.test.ts` orders two units with a price of one cent and compares the stored total with the catalogue price.
+- **Reproduce:** `tests/exploits/f05-client-price.test.ts` orders two units with a price of one cent and compares the stored total with the catalog price.
 - **Fix:** commit `7a147a0`. The browser sends only a product id and a quantity. The server looks the price up and sends Stripe the stored Price ID. The request body is validated, and unknown fields, such as a price, are dropped.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
 - **In plain words:** the cart told the server what things cost. Now the server decides.
@@ -70,23 +70,23 @@ Severity here means the damage if someone found the flaw on a live system holdin
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`. Unit tests cover the address ranges, including the IPv6 forms.
 - **In plain words:** the import feature would fetch anything, including addresses that only the server can see. It now fetches only from a short list of approved hosts, and never from inside your network.
 
-### F04. Replayed webhook fulfils twice (Medium)
+### F04. Replayed webhook fulfills twice (Medium)
 
 - **Why Medium:** it needs a valid event to replay, and Stripe itself retries events, so duplicates happen in normal operation.
 - **Where (v0):** `app/api/stripe/webhook/route.ts:15`, shipment and invoice rows are inserted on every delivery.
 - **Reproduce:** `tests/exploits/f04-webhook-replay.test.ts` sends the same signed event twice and counts shipments and invoices.
-- **Fix:** commit `0dd3c92`. A `processed_events` table keyed by the Stripe event id, and a database function that records the event and fulfils the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.
+- **Fix:** commit `0dd3c92`. A `processed_events` table keyed by the Stripe event id, and a database function that records the event and fulfills the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
 - **In plain words:** if Stripe sent the same message twice, the customer got two shipments. Now the second copy is ignored.
 
 ### F06. Invoice download has no ownership check (Medium)
 
 - **Why Medium:** the attacker needs the invoice's id, which is a random UUID, but nothing stops a leaked or logged id from working.
-- **Where (v0):** `app/actions/invoices.ts:10`, a service role lookup by id with no organisation check.
+- **Where (v0):** `app/actions/invoices.ts:10`, a service role lookup by id with no organization check.
 - **Reproduce:** `tests/exploits/f06-invoice-idor.test.ts` signs in through a real browser as a Harbor user and opens a Birchwood invoice.
-- **Fix:** commit `5f36c56`. The lookup runs as the user, so row level security applies, and an explicit organisation check follows. Another organisation's invoice and a missing invoice give the same answer.
+- **Fix:** commit `5f36c56`. The lookup runs as the user, so row level security applies, and an explicit organization check follows. Another organization's invoice and a missing invoice give the same answer.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`. The test also checks that the owner can still download their own invoice.
-- **In plain words:** knowing an invoice number was enough to read it. Now you also have to belong to the organisation it was issued to.
+- **In plain words:** knowing an invoice number was enough to read it. Now you also have to belong to the organization it was issued to.
 
 ### F08. Stored script injection in product notes (Medium)
 

@@ -32,7 +32,7 @@
 <tbody>
 <tr>
 <td>F01</td>
-<td>Orders readable across organisations</td>
+<td>Orders readable across organizations</td>
 <td>High</td>
 <td>Fixed, retest passed</td>
 </tr>
@@ -62,7 +62,7 @@
 </tr>
 <tr>
 <td>F04</td>
-<td>Replayed webhook fulfils twice</td>
+<td>Replayed webhook fulfills twice</td>
 <td>Medium</td>
 <td>Fixed, retest passed</td>
 </tr>
@@ -94,14 +94,14 @@
 </table>
 <p>Severity here means the damage if someone found the flaw on a live system holding real data. High is a direct route to other customers' data, money, or the whole database. Medium needs a valid account or another condition first. Low helps an attacker but does not open a door by itself.</p>
 <h2>Findings, ranked by severity</h2>
-<h3>F01. Orders readable across organisations (High)</h3>
+<h3>F01. Orders readable across organizations (High)</h3>
 <ul>
-<li><strong>Why High:</strong> any signed-in user could read every organisation's orders straight from the database API.</li>
+<li><strong>Why High:</strong> any signed-in user could read every organization's orders straight from the database API.</li>
 <li><strong>Where (v0):</strong> <code>supabase/migrations/20261001000000_init.sql:83</code>, <code>alter table public.orders disable row level security</code>.</li>
 <li><strong>Reproduce:</strong> <code>tests/exploits/f01-rls-orders.test.ts</code>. It signs in as a Harbor user and asks for all orders.</li>
-<li><strong>Fix:</strong> commit <code>9a530f4</code>. Row level security is on, with a select policy and an insert policy scoped to the caller's organisation. Access for the anonymous role is revoked. A pgTAP test (<code>supabase/tests/f01_orders_rls.test.sql</code>) covers the policies at the database level.</li>
+<li><strong>Fix:</strong> commit <code>9a530f4</code>. Row level security is on, with a select policy and an insert policy scoped to the caller's organization. Access for the anonymous role is revoked. A pgTAP test (<code>supabase/tests/f01_orders_rls.test.sql</code>) covers the policies at the database level.</li>
 <li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
-<li><strong>In plain words:</strong> the app filtered orders by organisation in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.</li>
+<li><strong>In plain words:</strong> the app filtered orders by organization in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.</li>
 </ul>
 <h3>F02. Service role key in the browser bundle (High)</h3>
 <ul>
@@ -125,7 +125,7 @@
 <ul>
 <li><strong>Why High:</strong> a shopper could pay any amount for any item.</li>
 <li><strong>Where (v0):</strong> <code>app/api/checkout/route.ts:23</code>, the order total is built from <code>unitAmount</code> in the request body, and the same value goes to Stripe.</li>
-<li><strong>Reproduce:</strong> <code>tests/exploits/f05-client-price.test.ts</code> orders two units with a price of one cent and compares the stored total with the catalogue price.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f05-client-price.test.ts</code> orders two units with a price of one cent and compares the stored total with the catalog price.</li>
 <li><strong>Fix:</strong> commit <code>7a147a0</code>. The browser sends only a product id and a quantity. The server looks the price up and sends Stripe the stored Price ID. The request body is validated, and unknown fields, such as a price, are dropped.</li>
 <li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
 <li><strong>In plain words:</strong> the cart told the server what things cost. Now the server decides.</li>
@@ -139,23 +139,23 @@
 <li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. Unit tests cover the address ranges, including the IPv6 forms.</li>
 <li><strong>In plain words:</strong> the import feature would fetch anything, including addresses that only the server can see. It now fetches only from a short list of approved hosts, and never from inside your network.</li>
 </ul>
-<h3>F04. Replayed webhook fulfils twice (Medium)</h3>
+<h3>F04. Replayed webhook fulfills twice (Medium)</h3>
 <ul>
 <li><strong>Why Medium:</strong> it needs a valid event to replay, and Stripe itself retries events, so duplicates happen in normal operation.</li>
 <li><strong>Where (v0):</strong> <code>app/api/stripe/webhook/route.ts:15</code>, shipment and invoice rows are inserted on every delivery.</li>
 <li><strong>Reproduce:</strong> <code>tests/exploits/f04-webhook-replay.test.ts</code> sends the same signed event twice and counts shipments and invoices.</li>
-<li><strong>Fix:</strong> commit <code>0dd3c92</code>. A <code>processed_events</code> table keyed by the Stripe event id, and a database function that records the event and fulfils the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.</li>
+<li><strong>Fix:</strong> commit <code>0dd3c92</code>. A <code>processed_events</code> table keyed by the Stripe event id, and a database function that records the event and fulfills the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.</li>
 <li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
 <li><strong>In plain words:</strong> if Stripe sent the same message twice, the customer got two shipments. Now the second copy is ignored.</li>
 </ul>
 <h3>F06. Invoice download has no ownership check (Medium)</h3>
 <ul>
 <li><strong>Why Medium:</strong> the attacker needs the invoice's id, which is a random UUID, but nothing stops a leaked or logged id from working.</li>
-<li><strong>Where (v0):</strong> <code>app/actions/invoices.ts:10</code>, a service role lookup by id with no organisation check.</li>
+<li><strong>Where (v0):</strong> <code>app/actions/invoices.ts:10</code>, a service role lookup by id with no organization check.</li>
 <li><strong>Reproduce:</strong> <code>tests/exploits/f06-invoice-idor.test.ts</code> signs in through a real browser as a Harbor user and opens a Birchwood invoice.</li>
-<li><strong>Fix:</strong> commit <code>5f36c56</code>. The lookup runs as the user, so row level security applies, and an explicit organisation check follows. Another organisation's invoice and a missing invoice give the same answer.</li>
+<li><strong>Fix:</strong> commit <code>5f36c56</code>. The lookup runs as the user, so row level security applies, and an explicit organization check follows. Another organization's invoice and a missing invoice give the same answer.</li>
 <li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. The test also checks that the owner can still download their own invoice.</li>
-<li><strong>In plain words:</strong> knowing an invoice number was enough to read it. Now you also have to belong to the organisation it was issued to.</li>
+<li><strong>In plain words:</strong> knowing an invoice number was enough to read it. Now you also have to belong to the organization it was issued to.</li>
 </ul>
 <h3>F08. Stored script injection in product notes (Medium)</h3>
 <ul>
