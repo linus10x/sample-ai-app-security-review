@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
-import { CatalogueSync } from "@/components/CatalogueSync";
+import { ClearNotesButton } from "@/components/ClearNotesButton";
 
 export default async function AdminPage() {
   const auth = await requireAuth();
@@ -19,7 +19,7 @@ export default async function AdminPage() {
         </tbody>
       </table>
       <h2>Tools</h2>
-      <CatalogueSync orgId={auth.orgId} />
+      <ClearNotesButton />
     </>
   );
 }
