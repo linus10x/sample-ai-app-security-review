@@ -19,7 +19,7 @@ export function CartView() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitAmount: l.unitAmount })),
+        items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
       }),
     });
     const data = await res.json();
