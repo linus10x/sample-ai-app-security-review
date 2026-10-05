@@ -2,13 +2,26 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildInvoiceText, invoiceNumber } from "@/lib/invoices";
 import { fail } from "@/lib/http";
+import { getStripe } from "@/lib/stripe";
+import { env } from "@/lib/env";
+import type Stripe from "stripe";
 
 export async function POST(req: Request) {
   try {
-    const event = JSON.parse(await req.text());
+    // Signature check needs the exact bytes Stripe sent, so read the raw body.
+    const raw = await req.text();
+    const signature = req.headers.get("stripe-signature");
+    if (!signature) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+    let event: Stripe.Event;
+    try {
+      event = getStripe().webhooks.constructEvent(raw, signature, env.webhookSecret());
+    } catch {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
 
     if (event.type === "checkout.session.completed") {
-      const orderId = event.data.object.metadata?.order_id as string;
+      const session = event.data.object as Stripe.Checkout.Session;
+      const orderId = session.metadata?.order_id as string;
       const admin = createAdminClient();
 
       await admin.from("orders").update({ status: "paid" }).eq("id", orderId);
