@@ -12,3 +12,4 @@ supabase/.branches/
 *.log
 .DS_Store
 tmp/
+tsconfig.tsbuildinfo

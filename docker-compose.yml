@@ -1,0 +1,15 @@
+# stripe-mock stands in for the Stripe API. ZAP runs the baseline scan.
+# Supabase brings its own containers through its CLI.
+services:
+  stripe-mock:
+    image: stripe/stripe-mock:latest
+    ports:
+      - "12111:12111"
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    profiles: ["scan"]
+    network_mode: host
+    volumes:
+      - ./docs/findings/zap:/zap/wrk:rw
+    command: >
+      zap-baseline.py -t http://localhost:3000 -r zap-report.html -J zap-report.json -I
