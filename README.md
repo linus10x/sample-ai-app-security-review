@@ -13,7 +13,7 @@ This is a work sample on synthetic data. It shows how I review an app that was p
 - **The app.** Cedar Supply Portal is a small multi-tenant ordering app: organization sign-up, product list, cart, Stripe Checkout, order history, invoice download, an admin page and an import-from-URL feature.
 - **The old code.** The tag `v0-as-shipped` is the app as a fast AI-assisted build might ship it, with ten seeded flaws (F01 to F10).
 - **The proof.** Each flaw has an exploit test in `tests/exploits/`. It fails on `v0-as-shipped` and passes on `main`. The CI jobs `exploits-v0` and `exploits-main` check both directions on every push, so a flaw that returns breaks the build.
-- **The fixes.** One commit per finding, so you can read each change on its own. They are on the build branch, `sample/01-ai-app-security-review`, and the commit ids in the report refer to it. `main` holds the same code as one squashed commit.
+- **The fixes.** One commit per finding, so you can read each change on its own. They are on the build branch, `sample/01-ai-app-security-review`, and under the tag `build-history`, and the commit ids in the report refer to them. `main` holds the same code as one squashed commit.
 - **The report.** [`docs/findings/REPORT.md`](docs/findings/REPORT.md) ranks the findings by severity. Each one has the file and line at v0, the test that reproduces it, the fix commit, the retest result and a note in plain words. It ends with a 30-day cleanup plan and a list of what I left unfixed.
 
 | ID | Finding | Severity |
