@@ -5,8 +5,10 @@ export function NoteList({ notes }: { notes: Note[] }) {
   return (
     <div>
       {notes.map((n) => (
-        // notes can include basic HTML formatting such as <b> and <i>
-        <div key={n.id} className="card" data-testid="note" dangerouslySetInnerHTML={{ __html: n.body }} />
+        // Plain text only. React escapes it, so markup in a note is shown, never run.
+        <div key={n.id} className="card" data-testid="note" style={{ whiteSpace: "pre-wrap" }}>
+          {n.body}
+        </div>
       ))}
     </div>
   );
