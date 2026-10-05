@@ -1,18 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
 import { handleStripeEvent } from "@/lib/webhook";
 import { fakeDb } from "./fake-db";
 
 const order = {
-  data: { orgs: { name: "Test Org" }, order_items: [{ quantity: 2, unit_cents: 500, products: { name: "Napkins" } }] },
+  data: { total_cents: 1000, orgs: { name: "Test Org" }, order_items: [{ quantity: 2, unit_cents: 500, products: { name: "Napkins" } }] },
   error: null,
 };
 
-function event(overrides: Partial<{ type: string; payment_status: string; metadata: Record<string, string> }> = {}) {
+function event(overrides: Partial<{ type: string; payment_status: string; metadata: Record<string, string>; amount_total: number }> = {}) {
   return {
     id: "evt_1",
     type: overrides.type ?? "checkout.session.completed",
-    data: { object: { payment_status: overrides.payment_status ?? "paid", metadata: overrides.metadata ?? { order_id: "11111111-2222-3333-4444-555555555555" } } },
+    data: { object: { payment_status: overrides.payment_status ?? "paid", amount_total: overrides.amount_total ?? 1000, metadata: overrides.metadata ?? { order_id: "11111111-2222-3333-4444-555555555555" } } },
   } as unknown as Stripe.Event;
 }
 
@@ -40,6 +40,15 @@ describe("handleStripeEvent", () => {
     expect(rpc.args).toMatchObject({ p_event_id: "evt_1", p_invoice_number: "INV-11111111" });
     expect((rpc.args as { p_invoice_body: string }).p_invoice_body).toContain("Billed to: Test Org");
     expect((rpc.args as { p_invoice_body: string }).p_invoice_body).toContain("Total: $10.00");
+  });
+
+  it("does not fulfil when the paid amount differs from the order total, and logs it", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { db, calls } = fakeDb({ selects: { orders: order }, rpc: { data: true, error: null } });
+    expect(await handleStripeEvent(db, event({ amount_total: 1 }))).toEqual({ status: "amount_mismatch" });
+    expect(calls.some((c) => c.rpc === "fulfil_checkout")).toBe(false);
+    expect(JSON.parse(log.mock.calls[0][0] as string)).toMatchObject({ event: "amount_mismatch", paid: 1, expected: 1000 });
+    log.mockRestore();
   });
 
   it("reports a replay as a duplicate", async () => {

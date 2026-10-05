@@ -30,14 +30,16 @@ export const POST = withApi(async (req) => {
     throw e;
   }
 
-  const { data: order, error: orderErr } = await auth.db
+  // Orders and their lines are written by the server only. Members have no insert access.
+  const admin = createAdminClient();
+  const { data: order, error: orderErr } = await admin
     .from("orders")
     .insert({ org_id: auth.orgId, user_id: auth.userId, status: "pending", total_cents: priced.total })
     .select("id")
     .single();
   if (orderErr) throw dbError(orderErr, "insert into orders (org_id, user_id, status, total_cents) values (...)");
 
-  const { error: itemsErr } = await auth.db.from("order_items").insert(
+  const { error: itemsErr } = await admin.from("order_items").insert(
     priced.lines.map((l) => ({
       order_id: order.id,
       product_id: l.productId,
@@ -56,11 +58,11 @@ export const POST = withApi(async (req) => {
     line_items: priced.lines.map((l) => ({ price: l.stripe_price_id, quantity: l.quantity })),
   });
 
-  const { error: sessionErr } = await createAdminClient()
+  const { error: sessionErr } = await admin
     .from("orders")
     .update({ stripe_session_id: session.id })
     .eq("id", order.id);
   if (sessionErr) throw dbError(sessionErr, "update orders set stripe_session_id = ... where id = ...");
 
-  return NextResponse.json({ orderId: order.id, url: session.url });
+  return NextResponse.json({ orderId: order.id, totalCents: priced.total, url: session.url });
 });

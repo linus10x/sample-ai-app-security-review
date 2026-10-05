@@ -2,11 +2,11 @@
 # Supabase brings its own containers through its CLI.
 services:
   stripe-mock:
-    image: stripe/stripe-mock:latest
+    image: stripe/stripe-mock:v0.206.0
     ports:
       - "12111:12111"
   zap:
-    image: ghcr.io/zaproxy/zaproxy:stable
+    image: ghcr.io/zaproxy/zaproxy:2.17.0
     profiles: ["scan"]
     network_mode: host
     volumes:

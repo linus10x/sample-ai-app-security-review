@@ -57,7 +57,7 @@ Severity here means the damage if someone found the flaw on a live system holdin
 - **Why High:** a shopper could pay any amount for any item.
 - **Where (v0):** `app/api/checkout/route.ts:23`, the order total is built from `unitAmount` in the request body, and the same value goes to Stripe.
 - **Reproduce:** `tests/exploits/f05-client-price.test.ts` orders two units with a price of one cent and compares the stored total with the catalog price.
-- **Fix:** commit `7a147a0`. The browser sends only a product id and a quantity. The server looks the price up and sends Stripe the stored Price ID. The request body is validated, and unknown fields, such as a price, are dropped.
+- **Fix:** commit `7a147a0`, then a second change after a review of the merged result found the database side still open. The browser sends only a product id and a quantity. The server looks the price up and sends Stripe the stored Price ID. The request body is validated, and unknown fields, such as a price, are dropped. Orders and order lines are written only by the server, so a member can no longer insert one with a price of their own through the database API. The webhook compares the amount Stripe says was paid with the order total and does not fulfil on a mismatch.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
 - **In plain words:** the cart told the server what things cost. Now the server decides.
 
@@ -67,7 +67,7 @@ Severity here means the damage if someone found the flaw on a live system holdin
 - **Where (v0):** `app/api/import/route.ts:11`, `fetch(url)` on a caller-supplied address.
 - **Reproduce:** `tests/exploits/f07-ssrf-import.test.ts` starts a listener on the loopback address and asks the app to import from it.
 - **Fix:** commit `e8b572b`. Only `https` on the default port, only hosts on an allowlist, no credentials in the URL, no redirects, a five second timeout and a size cap. The connection itself refuses private and loopback addresses, which also covers a name that resolves to one. I checked that last case by hand with an allowlisted name that resolves to the loopback address.
-- **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`. Unit tests cover the address ranges, including the IPv6 forms.
+- **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`. That test only checks that a loopback address is refused. The case where an approved host still imports normally is covered by unit tests, because an exploit test cannot reach a real https host. Unit tests also cover the address ranges, including the IPv6 forms.
 - **In plain words:** the import feature would fetch anything, including addresses that only the server can see. It now fetches only from a short list of approved hosts, and never from inside your network.
 
 ### F04. Replayed webhook fulfills twice (Medium)
@@ -145,6 +145,17 @@ These came out of the scans and the review. I left them open on purpose so the r
 
 **Week 4. Keep it fixed.** Run the exploit suite on every pull request. Add Semgrep rules for the patterns that bit you. Write down who reviews a change that touches auth, payments or the database, and what they check.
 
+## Found in a later review of the merged result
+
+After the build merged, I ran a separate multi-method review of the whole tree. It found four things, now fixed or listed here:
+
+- The database still allowed a member to write their own orders and order lines (see F05). Fixed.
+- The webhook did not compare the amount paid with the order total (see F05). Fixed.
+- The README said every tool version was pinned. The CI tools were not. Now pinned, and the README says exactly what is.
+- The exploit script could leave the app running if it failed part way. It now cleans up after itself.
+
+Two smaller points remain open. A checkout that fails between creating the order and creating the Stripe session leaves a pending order behind, and the order and its lines are written in two steps instead of one transaction. Neither lets anyone pay less or read anyone else's data.
+
 ## What this review did not cover
 
-Load testing, mobile clients, the hosting platform's own configuration, third-party services beyond Stripe in test mode, and social engineering. The data is synthetic and the app has no real customers, so nothing here says anything about a live system. The ten flaws were seeded on purpose, so the count is a feature of the sample and not a measurement of how many flaws an app like this has.
+This sample shows that I can fix flaws and prove the fixes hold. It does not show that I can find an unknown flaw in someone else's app, which is the work of the first week of a real engagement. Load testing, mobile clients, the hosting platform's own configuration, third-party services beyond Stripe in test mode, and social engineering. The data is synthetic and the app has no real customers, so nothing here says anything about a live system. The ten flaws were seeded on purpose, so the count is a feature of the sample and not a measurement of how many flaws an app like this has.

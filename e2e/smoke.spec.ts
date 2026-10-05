@@ -20,7 +20,7 @@ test("sign up, add to cart, check out with stripe-mock, see the paid order", asy
   // Stripe's hosted page is not part of this sample, so keep the browser on our side.
   await page.route((url) => url.hostname !== new URL(baseURL!).hostname, (route) => route.fulfill({ status: 200, body: "stripe checkout stub" }));
   // Read the checkout response before the page follows its redirect.
-  let checkout: { status: number; body: { orderId: string; url: string } } | undefined;
+  let checkout: { status: number; body: { orderId: string; totalCents: number; url: string } } | undefined;
   await page.route("**/api/checkout", async (route) => {
     const res = await route.fetch();
     checkout = { status: res.status(), body: await res.json() };
@@ -28,7 +28,7 @@ test("sign up, add to cart, check out with stripe-mock, see the paid order", asy
   });
   await page.click('button:has-text("Check out")');
   await expect.poll(() => checkout?.status).toBe(200);
-  const { orderId, url } = checkout!.body;
+  const { orderId, totalCents, url } = checkout!.body;
   expect(orderId).toBeTruthy();
   expect(url).toMatch(/^https:\/\//);
 
@@ -37,7 +37,7 @@ test("sign up, add to cart, check out with stripe-mock, see the paid order", asy
     id: `evt_smoke_${Date.now()}`,
     object: "event",
     type: "checkout.session.completed",
-    data: { object: { id: "cs_test_smoke", object: "checkout.session", payment_status: "paid", metadata: { order_id: orderId } } },
+    data: { object: { id: "cs_test_smoke", object: "checkout.session", payment_status: "paid", amount_total: totalCents, metadata: { order_id: orderId } } },
   });
   const signature = stripe.webhooks.generateTestHeaderString({ payload, secret: process.env.STRIPE_WEBHOOK_SECRET! });
   const hook = await fetch(`${baseURL}/api/stripe/webhook`, { method: "POST", headers: { "stripe-signature": signature, "content-type": "application/json" }, body: payload });
