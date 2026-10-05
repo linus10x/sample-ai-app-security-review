@@ -37,7 +37,9 @@
     {
       "id": "F05",
       "tests": [
-        "F05 price comes from the server ignores a price sent by the browser"
+        "F05 price comes from the server ignores a price sent by the browser",
+        "F05 price comes from the server does not let a member write orders or order lines straight to the database",
+        "F05 price comes from the server does not fulfil an order when the amount paid differs from the order total"
       ],
       "outcome": "fail",
       "reason": "AssertionError: expected 2 to be 900 // Object.is equality"
@@ -87,8 +89,8 @@
   "matched": 10,
   "total": 10,
   "vitest": {
-    "tests": 11,
+    "tests": 13,
     "passed": 0,
-    "failed": 11
+    "failed": 13
   }
 }

@@ -60,7 +60,7 @@ jobs:
         with: { python-version: "3.12" }
       - name: Semgrep (fails on ERROR)
         run: |
-          pip install semgrep
+          pip install semgrep==1.179.0
           semgrep scan --config p/typescript --config p/nextjs --config semgrep/cedar.yml \
             --exclude node_modules --exclude .next --metrics=off --severity ERROR --error \
             --sarif --output semgrep.sarif
@@ -69,7 +69,7 @@ jobs:
       - name: osv-scanner (fails on high or critical)
         run: |
           mkdir -p out
-          docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:latest scan source -L /src/package-lock.json --format json > out/osv-report.json || true
+          docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.6.0 scan source -L /src/package-lock.json --format json > out/osv-report.json || true
           python3 scripts/osv-gate.py out/osv-report.json | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/osv-gate.py out/osv-report.json
       - uses: actions/upload-artifact@v4
@@ -91,7 +91,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with: { version: "2.119.0" }
       - name: Start Supabase and stripe-mock
         run: |
           supabase start
@@ -112,7 +112,7 @@ jobs:
       - name: OWASP ZAP baseline
         run: |
           mkdir -p docs/findings/zap && chmod 777 docs/findings/zap
-          docker run --rm --network host -v "$PWD/docs/findings/zap":/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable \
+          docker run --rm --network host -v "$PWD/docs/findings/zap":/zap/wrk:rw ghcr.io/zaproxy/zaproxy:2.17.0 \
             zap-baseline.py -t http://localhost:3000 -r zap-report.html -J zap-report.json -I | tee zap.txt
           tail -1 zap.txt | tee -a "$GITHUB_STEP_SUMMARY"
           python3 - <<'PY'
@@ -144,7 +144,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with: { version: "2.119.0" }
       - name: Start Supabase and stripe-mock
         run: |
           supabase start

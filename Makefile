@@ -52,7 +52,7 @@ scan:
 	$(PY) -m semgrep scan --config p/typescript --config p/nextjs --config semgrep/cedar.yml --exclude node_modules --exclude .next --metrics=off --quiet --severity ERROR --error
 	gitleaks detect --no-banner --redact --log-opts="--all"
 	mkdir -p docs/findings
-	docker run --rm -v "$(PWD)":/src ghcr.io/google/osv-scanner:latest scan source -L /src/package-lock.json --format json > docs/findings/osv-report.json
+	docker run --rm -v "$(PWD)":/src ghcr.io/google/osv-scanner:v2.6.0 scan source -L /src/package-lock.json --format json > docs/findings/osv-report.json
 	$(PY) scripts/osv-gate.py docs/findings/osv-report.json
 
 # v0-as-shipped is checked out beside the repo, run, and removed.
