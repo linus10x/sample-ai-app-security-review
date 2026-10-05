@@ -14,13 +14,13 @@ help:
 
 up:
 	npm ci --no-audit --no-fund
-	supabase start
+	npx supabase start
 	./scripts/local-env.sh
 	docker compose up -d stripe-mock
 	npm run seed
 
 down:
-	supabase stop
+	npx supabase stop
 	docker compose down
 
 demo: up
@@ -38,7 +38,7 @@ unit:
 	npm run test:coverage
 
 pgtap:
-	supabase test db
+	npx supabase test db
 
 exploits:
 	./scripts/exploit-job.sh . pass main
