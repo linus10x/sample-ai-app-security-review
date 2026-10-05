@@ -12,3 +12,15 @@ supabase/.branches/
 *.log
 .DS_Store
 tmp/
+tsconfig.tsbuildinfo
+.audit/
+docs/findings/zap/
+docs/findings/osv-report.json
+pgtap.txt
+pgtap-v0.txt
+zap.txt
+semgrep.sarif
+out/
+dl-main/
+dl-v0/
+v0/

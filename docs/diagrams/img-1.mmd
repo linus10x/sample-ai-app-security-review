@@ -1,0 +1,39 @@
+flowchart TB
+  subgraph B["BROWSER (untrusted)"]
+    direction LR
+    P["Pages and cart"]
+    N["Product notes<br/>F08 text only"]
+    K["Admin tool<br/>F02 no key here"]
+  end
+  subgraph S["NEXT.JS SERVER (trusted)"]
+    direction LR
+    A["Checkout<br/>F05 server price"]
+    I["Import<br/>F07 allowlist"]
+    V["Invoices<br/>F06 owner check"]
+    E["All routes<br/>F09 safe errors<br/>F10 headers"]
+    W["Webhook<br/>F03 signature<br/>F04 once only"]
+  end
+  subgraph D["SUPABASE POSTGRES"]
+    O[("Orders, invoices<br/>F01 row rules")]
+  end
+  subgraph T["STRIPE (test mode)"]
+    C["Checkout and events"]
+  end
+  P --> A
+  N --> E
+  K -->|"server action"| E
+  A --> O
+  V --> O
+  W --> O
+  A --> C
+  C -->|"signed event"| W
+  I -.->|"approved hosts only"| X["Supplier feeds"]
+  classDef zone fill:#fff,stroke:#1b2430,stroke-width:2px,color:#1b2430
+  classDef node fill:#f3f5f7,stroke:#5b6675,color:#1b2430
+  classDef ext fill:#fff,stroke:#5b6675,stroke-dasharray:4 3,color:#5b6675
+  class P,N,K,A,I,V,E,W,O,C node
+  class X ext
+  style B fill:#fdf6e7,stroke:#b7791f,stroke-width:2px
+  style S fill:#e9f4ef,stroke:#1f5f4a,stroke-width:2px
+  style D fill:#e8eef7,stroke:#2b4c7e,stroke-width:2px
+  style T fill:#f1ecf7,stroke:#5b3f8c,stroke-width:2px

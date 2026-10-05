@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findings report: Cedar Supply Portal</title>
+<style>
+  :root { --ink:#1b2430; --muted:#5b6675; --line:#d9dee5; --brand:#1f5f4a; }
+  body { font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif; color:var(--ink); max-width:920px; margin:0 auto; padding:24px; }
+  h1 { font-size:26px; margin:0 0 8px; color:var(--brand); }
+  h2 { font-size:19px; margin:28px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+  h3 { font-size:16px; margin:22px 0 6px; }
+  table { border-collapse:collapse; width:100%; margin:10px 0; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); }
+  th { background:#f3f5f7; }
+  code { background:#f3f5f7; padding:1px 4px; border-radius:3px; font-size:13px; }
+  ul { padding-left:20px; }
+  #summary { scroll-margin-top:0; }
+</style></head><body>
+<h1>Findings report: Cedar Supply Portal</h1>
+<p>Sample on synthetic data. Cedar Supply Portal is a made-up B2B ordering app, built to look like something put together quickly with AI coding tools. This is an illustrative review. It is not a penetration test, and it is not a certification of anything.</p>
+<div id="summary"></div>
+
+<h2>Summary</h2>
+<p>I seeded ten flaws into the app as first shipped (tag <code>v0-as-shipped</code>), wrote an exploit test for each one, and fixed each on <code>main</code> in its own commit. Every exploit test fails on the old code and passes on the new code, and a CI job checks both directions on every push.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Finding</th>
+<th>Severity</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F01</td>
+<td>Orders readable across organizations</td>
+<td>High</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F02</td>
+<td>Service role key in the browser bundle</td>
+<td>High</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F03</td>
+<td>Stripe webhook accepts unsigned events</td>
+<td>High</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F05</td>
+<td>Prices taken from the browser</td>
+<td>High</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F07</td>
+<td>Import from URL reaches internal addresses</td>
+<td>High</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F04</td>
+<td>Replayed webhook fulfills twice</td>
+<td>Medium</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F06</td>
+<td>Invoice download has no ownership check</td>
+<td>Medium</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F08</td>
+<td>Stored script injection in product notes</td>
+<td>Medium</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F09</td>
+<td>Errors return stack traces and SQL</td>
+<td>Low</td>
+<td>Fixed, retest passed</td>
+</tr>
+<tr>
+<td>F10</td>
+<td>No security headers</td>
+<td>Low</td>
+<td>Fixed, retest passed</td>
+</tr>
+</tbody>
+</table>
+<p>Severity here means the damage if someone found the flaw on a live system holding real data. High is a direct route to other customers' data, money, or the whole database. Medium needs a valid account or another condition first. Low helps an attacker but does not open a door by itself.</p>
+<h2>Findings, ranked by severity</h2>
+<h3>F01. Orders readable across organizations (High)</h3>
+<ul>
+<li><strong>Why High:</strong> any signed-in user could read every organization's orders straight from the database API.</li>
+<li><strong>Where (v0):</strong> <code>supabase/migrations/20261001000000_init.sql:83</code>, <code>alter table public.orders disable row level security</code>.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f01-rls-orders.test.ts</code>. It signs in as a Harbor user and asks for all orders.</li>
+<li><strong>Fix:</strong> commit <code>9a530f4</code>. Row level security is on, with a select policy and an insert policy scoped to the caller's organization. Access for the anonymous role is revoked. A pgTAP test (<code>supabase/tests/f01_orders_rls.test.sql</code>) covers the policies at the database level.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
+<li><strong>In plain words:</strong> the app filtered orders by organization in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.</li>
+</ul>
+<h3>F02. Service role key in the browser bundle (High)</h3>
+<ul>
+<li><strong>Why High:</strong> that key skips every row level security rule. Anyone who opens the page source could use it against the whole database.</li>
+<li><strong>Where (v0):</strong> <code>components/CatalogueSync.tsx:14</code>, a client component that builds a database client from a <code>NEXT_PUBLIC_</code> variable.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f02-service-key-in-bundle.test.ts</code> scans every file under <code>.next/static</code> for the key and for its name.</li>
+<li><strong>Fix:</strong> commit <code>b42ee09</code>. The admin action now runs on the server only, and the admin client imports <code>server-only</code>, so a client component that imports it stops the build. <code>scripts/check-bundle.sh</code> repeats the scan as a build step in CI.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. I also confirmed by hand that importing the admin client from a client component breaks the build.</li>
+<li><strong>In plain words:</strong> an admin tool called the database from the browser with the master key. Admin work now happens on the server, and the build refuses to ship the key by accident. Any real key that ever sat in a bundle like this should be rotated.</li>
+</ul>
+<h3>F03. Stripe webhook accepts unsigned events (High)</h3>
+<ul>
+<li><strong>Why High:</strong> anyone who can reach the URL could mark any order as paid.</li>
+<li><strong>Where (v0):</strong> <code>app/api/stripe/webhook/route.ts:8</code>, <code>JSON.parse(await req.text())</code> with no signature check.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f03-unsigned-webhook.test.ts</code> posts an unsigned event and a forged one, then a correctly signed one.</li>
+<li><strong>Fix:</strong> commit <code>7b051ec</code>. The handler reads the raw body and calls <code>stripe.webhooks.constructEvent</code> with the signing secret, and answers 400 when the check fails.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. The test also checks that a correctly signed event still works, so a broken endpoint cannot pass by rejecting everything.</li>
+<li><strong>In plain words:</strong> the app believed whatever the internet told it about payments. It now accepts only messages Stripe has signed.</li>
+</ul>
+<h3>F05. Prices taken from the browser (High)</h3>
+<ul>
+<li><strong>Why High:</strong> a shopper could pay any amount for any item.</li>
+<li><strong>Where (v0):</strong> <code>app/api/checkout/route.ts:23</code>, the order total is built from <code>unitAmount</code> in the request body, and the same value goes to Stripe.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f05-client-price.test.ts</code> orders two units with a price of one cent and compares the stored total with the catalog price.</li>
+<li><strong>Fix:</strong> commit <code>7a147a0</code>. The browser sends only a product id and a quantity. The server looks the price up and sends Stripe the stored Price ID. The request body is validated, and unknown fields, such as a price, are dropped.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
+<li><strong>In plain words:</strong> the cart told the server what things cost. Now the server decides.</li>
+</ul>
+<h3>F07. Import from URL reaches internal addresses (High)</h3>
+<ul>
+<li><strong>Why High:</strong> a signed-in user could make the server call internal services or a cloud metadata address and read the answer.</li>
+<li><strong>Where (v0):</strong> <code>app/api/import/route.ts:11</code>, <code>fetch(url)</code> on a caller-supplied address.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f07-ssrf-import.test.ts</code> starts a listener on the loopback address and asks the app to import from it.</li>
+<li><strong>Fix:</strong> commit <code>e8b572b</code>. Only <code>https</code> on the default port, only hosts on an allowlist, no credentials in the URL, no redirects, a five second timeout and a size cap. The connection itself refuses private and loopback addresses, which also covers a name that resolves to one. I checked that last case by hand with an allowlisted name that resolves to the loopback address.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. Unit tests cover the address ranges, including the IPv6 forms.</li>
+<li><strong>In plain words:</strong> the import feature would fetch anything, including addresses that only the server can see. It now fetches only from a short list of approved hosts, and never from inside your network.</li>
+</ul>
+<h3>F04. Replayed webhook fulfills twice (Medium)</h3>
+<ul>
+<li><strong>Why Medium:</strong> it needs a valid event to replay, and Stripe itself retries events, so duplicates happen in normal operation.</li>
+<li><strong>Where (v0):</strong> <code>app/api/stripe/webhook/route.ts:15</code>, shipment and invoice rows are inserted on every delivery.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f04-webhook-replay.test.ts</code> sends the same signed event twice and counts shipments and invoices.</li>
+<li><strong>Fix:</strong> commit <code>0dd3c92</code>. A <code>processed_events</code> table keyed by the Stripe event id, and a database function that records the event and fulfills the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
+<li><strong>In plain words:</strong> if Stripe sent the same message twice, the customer got two shipments. Now the second copy is ignored.</li>
+</ul>
+<h3>F06. Invoice download has no ownership check (Medium)</h3>
+<ul>
+<li><strong>Why Medium:</strong> the attacker needs the invoice's id, which is a random UUID, but nothing stops a leaked or logged id from working.</li>
+<li><strong>Where (v0):</strong> <code>app/actions/invoices.ts:10</code>, a service role lookup by id with no organization check.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f06-invoice-idor.test.ts</code> signs in through a real browser as a Harbor user and opens a Birchwood invoice.</li>
+<li><strong>Fix:</strong> commit <code>5f36c56</code>. The lookup runs as the user, so row level security applies, and an explicit organization check follows. Another organization's invoice and a missing invoice give the same answer.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. The test also checks that the owner can still download their own invoice.</li>
+<li><strong>In plain words:</strong> knowing an invoice number was enough to read it. Now you also have to belong to the organization it was issued to.</li>
+</ul>
+<h3>F08. Stored script injection in product notes (Medium)</h3>
+<ul>
+<li><strong>Why Medium:</strong> it needs an account, but a note written by one team member runs in the browser of everyone who opens the page, an admin included.</li>
+<li><strong>Where (v0):</strong> <code>components/NoteList.tsx:9</code>, <code>dangerouslySetInnerHTML</code> on the note body.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f08-stored-xss.test.ts</code> saves a note containing an image tag with an error handler and checks whether the handler runs.</li>
+<li><strong>Fix:</strong> commit <code>a96d32f</code>. Notes render as text, so markup is shown and never run. Note input is validated for length.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>.</li>
+<li><strong>In plain words:</strong> a note could contain a small program, and the page would run it. Notes are now only ever text.</li>
+</ul>
+<h3>F09. Errors return stack traces and SQL (Low)</h3>
+<ul>
+<li><strong>Why Low:</strong> it gives an attacker a map of the code and the database, but opens nothing by itself.</li>
+<li><strong>Where (v0):</strong> <code>lib/http.ts:10</code>, error responses include <code>stack</code>, the database message and the statement.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f09-error-leak.test.ts</code> triggers a database failure and a parse failure and reads the responses.</li>
+<li><strong>Fix:</strong> commit <code>13b2c6b</code>. Callers get a short message and a correlation id, in the body and in an <code>x-correlation-id</code> header. The full detail goes to the server log under the same id.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. It checks that the correlation id is present as well as that the leak is gone.</li>
+<li><strong>In plain words:</strong> when something broke, the app explained itself in detail to whoever was watching. Now the customer sees a short message, and your team finds the detail in the logs by id.</li>
+</ul>
+<h3>F10. No security headers (Low)</h3>
+<ul>
+<li><strong>Why Low:</strong> these are second layers of defence. They limit the damage if another flaw exists.</li>
+<li><strong>Where (v0):</strong> <code>next.config.ts:4</code>, no headers configured.</li>
+<li><strong>Reproduce:</strong> <code>tests/exploits/f10-security-headers.test.ts</code> reads the response headers on a page and an API route.</li>
+<li><strong>Fix:</strong> commit <code>ad6a101</code>. A content security policy, HSTS, <code>X-Content-Type-Options</code>, a referrer policy, frame blocking and a permissions policy. The <code>X-Powered-By</code> header is off.</li>
+<li><strong>Retest:</strong> the exploit test fails on <code>v0-as-shipped</code> and passes on <code>main</code>. The ZAP baseline scan shows none of the missing-header alerts on <code>main</code>.</li>
+<li><strong>In plain words:</strong> the browser had no instructions about what the site is allowed to do. It does now.</li>
+</ul>
+<h2>Scanner results on main</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Semgrep (TypeScript and Next.js rule sets plus four rules written for this app)</td>
+<td>no findings at ERROR severity. The app's own rules flag the old code.</td>
+</tr>
+<tr>
+<td>gitleaks over the full history</td>
+<td>no leaks found</td>
+</tr>
+<tr>
+<td>osv-scanner on <code>package-lock.json</code></td>
+<td>518 packages scanned, none rated high or critical</td>
+</tr>
+<tr>
+<td>OWASP ZAP baseline against the running app</td>
+<td>0 failures, 61 checks passed, 6 warnings (listed below)</td>
+</tr>
+</tbody>
+</table>
+<h2>Not fixed in this sample</h2>
+<p>These came out of the scans and the review. I left them open on purpose so the report stays honest about what a first pass leaves behind.</p>
+<ul>
+<li><strong>Inline scripts and styles allowed by the content security policy.</strong> Next.js adds small inline scripts, so the policy permits them for now. ZAP reports this at medium. The next step is a nonce-based policy.</li>
+<li><strong>Cross-origin isolation headers</strong> (<code>Cross-Origin-Opener-Policy</code>, <code>Cross-Origin-Embedder-Policy</code>, <code>Cross-Origin-Resource-Policy</code>) are not set. ZAP reports them at low.</li>
+<li><strong>No anti-CSRF token on the sign-in and sign-up forms.</strong> Next.js server actions check the request origin, which covers the usual case. A token would add a second layer.</li>
+<li><strong>No rate limiting</strong> on sign-in, checkout or import.</li>
+<li><strong>Sessions are not refreshed in the browser,</strong> so a long-lived tab can lose its session after an hour.</li>
+<li><strong>Row level security on <code>product_notes</code> has no delete or update policy.</strong> That is intended here, and worth revisiting if notes become editable.</li>
+</ul>
+<h2>30-day cleanup plan</h2>
+<p><strong>Week 1. Close the doors.</strong> Confirm F01, F02, F03, F05 and F07 on the live system before anything else. Rotate every key that has ever been in a bundle, a log or a chat. Turn on secret scanning and push protection.</p>
+<p><strong>Week 2. Money and tenants.</strong> Add monitoring on webhook failures and duplicate event ids. Review every table for row level security and add a pgTAP test for each policy. Check that every route that takes an id also checks ownership.</p>
+<p><strong>Week 3. Browser and errors.</strong> Move to a nonce-based content security policy. Add the cross-origin headers. Add rate limiting to sign-in, checkout and import. Ship the correlation id to wherever your team reads logs.</p>
+<p><strong>Week 4. Keep it fixed.</strong> Run the exploit suite on every pull request. Add Semgrep rules for the patterns that bit you. Write down who reviews a change that touches auth, payments or the database, and what they check.</p>
+<h2>What this review did not cover</h2>
+<p>Load testing, mobile clients, the hosting platform's own configuration, third-party services beyond Stripe in test mode, and social engineering. The data is synthetic and the app has no real customers, so nothing here says anything about a live system. The ten flaws were seeded on purpose, so the count is a feature of the sample and not a measurement of how many flaws an app like this has.</p>
+</body></html>
