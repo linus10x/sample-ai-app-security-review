@@ -30,7 +30,7 @@ Severity here means the damage if someone found the flaw on a live system holdin
 - **Why High:** any signed-in user could read every organization's orders straight from the database API.
 - **Where (v0):** `supabase/migrations/20261001000000_init.sql:83`, `alter table public.orders disable row level security`.
 - **Reproduce:** `tests/exploits/f01-rls-orders.test.ts`. It signs in as a Harbor user and asks for all orders.
-- **Fix:** commit `9a530f4`. Row level security is on, with a select policy and an insert policy scoped to the caller's organization. Access for the anonymous role is revoked. A pgTAP test (`supabase/tests/f01_orders_rls.test.sql`) covers the policies at the database level.
+- **Fix:** commit `9a530f4`. Row level security is on, with a select policy scoped to the caller's organization. Access for the anonymous role is revoked. The fix also added an insert policy for pending orders. The F05 change later removed it, along with every member write on orders and order lines, so the select policy is the only thing members have. That migration is forward-only. A pgTAP test (`supabase/tests/f01_orders_rls.test.sql`) covers the select policy, the missing write access, and the anonymous role.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
 - **In plain words:** the app filtered orders by organization in its own code, but the database would hand everything to anyone who asked it directly. The database now enforces the rule itself.
 
@@ -75,7 +75,7 @@ Severity here means the damage if someone found the flaw on a live system holdin
 - **Why Medium:** it needs a valid event to replay, and Stripe itself retries events, so duplicates happen in normal operation.
 - **Where (v0):** `app/api/stripe/webhook/route.ts:15`, shipment and invoice rows are inserted on every delivery.
 - **Reproduce:** `tests/exploits/f04-webhook-replay.test.ts` sends the same signed event twice and counts shipments and invoices.
-- **Fix:** commit `0dd3c92`. A `processed_events` table keyed by the Stripe event id, and a database function that records the event and fulfills the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing.
+- **Fix:** commit `0dd3c92`. A `processed_events` table keyed by the Stripe event id, and a database function that records the event and fulfills the order in one transaction. A failure rolls both back, so Stripe can retry. A replay does nothing. A later change also makes the function skip an order that is no longer pending, so a second, different event for a paid order cannot fulfil it again.
 - **Retest:** the exploit test fails on `v0-as-shipped` and passes on `main`.
 - **In plain words:** if Stripe sent the same message twice, the customer got two shipments. Now the second copy is ignored.
 
@@ -154,7 +154,7 @@ After the build merged, I ran a separate multi-method review of the whole tree. 
 - The README said every tool version was pinned. The CI tools were not. Now pinned, and the README says exactly what is.
 - The exploit script could leave the app running if it failed part way. It now cleans up after itself.
 
-Two smaller points remain open. A checkout that fails between creating the order and creating the Stripe session leaves a pending order behind, and the order and its lines are written in two steps instead of one transaction. Neither lets anyone pay less or read anyone else's data.
+Three smaller points remain open. When the amount Stripe reports differs from the order total, the webhook logs the event and answers 200, so nothing is fulfilled and Stripe stops retrying. A real deployment needs an alert on that log line, and a person to reconcile the order. The webhook also does not compare the currency or the session id with the stored order. A checkout that fails between creating the order and creating the Stripe session leaves a pending order behind, and the order and its lines are written in two steps instead of one transaction. Neither lets anyone pay less or read anyone else's data.
 
 ## What this review did not cover
 
