@@ -24,11 +24,11 @@
     "source": "docs/findings/results-v0.json (job exploits-v0)"
   },
   "pgtap_checks": {
-    "value": 6,
+    "value": 9,
     "source": "pgtap.txt (job exploits-main)"
   },
   "pgtap_failed_on_v0": {
-    "value": 5,
+    "value": 7,
     "source": "pgtap-v0.txt (job exploits-v0)"
   },
   "zap_fail": {
