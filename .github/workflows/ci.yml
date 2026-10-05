@@ -184,6 +184,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: pip install pillow markdown pyyaml
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
       - uses: actions/download-artifact@v4
         with: { name: results-main, path: dl-main }
       - uses: actions/download-artifact@v4
@@ -212,10 +213,24 @@ jobs:
               assert size == (1000, 750), size
           PY
           pdfinfo docs/portfolio/case-study.pdf | tee -a "$GITHUB_STEP_SUMMARY"
-          pdfinfo docs/portfolio/case-study.pdf | grep -q "Pages: *1$"
-          ! pdftotext docs/portfolio/case-study.pdf - | grep -Ei "http|@|github"
+          pdfinfo docs/portfolio/case-study.pdf | grep -Eq "^Pages: +1$"
+          if pdftotext docs/portfolio/case-study.pdf - | grep -Ei "http|@|github"; then
+            echo "the PDF holds a link, an email or a GitHub mention"; exit 1
+          fi
+      - name: OCR check on the images (no emails, links or account ids)
+        run: |
+          for n in 1 2 3; do
+            tesseract docs/portfolio/img-$n.png - 2>/dev/null > ocr-$n.txt
+            echo "img-$n: $(wc -w < ocr-$n.txt) words read"
+            if grep -Eiq "[A-Za-z0-9._-]+@[A-Za-z0-9.-]+|https?:|www\\.|github" ocr-$n.txt; then
+              echo "img-$n shows an email, a link or a GitHub mention"; cat ocr-$n.txt; exit 1
+            fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: portfolio
-          path: docs/portfolio/
+          path: |
+            docs/portfolio/
+            docs/findings/ci-facts.json
+            docs/findings/REPORT.html
           retention-days: 14
