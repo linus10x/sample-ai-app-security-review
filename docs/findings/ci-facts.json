@@ -1,0 +1,46 @@
+{
+  "unit_tests_passed": {
+    "value": 104,
+    "source": "coverage/unit-results.json (job quality)"
+  },
+  "unit_tests_total": {
+    "value": 104,
+    "source": "coverage/unit-results.json (job quality)"
+  },
+  "coverage_pct": {
+    "value": 98.5,
+    "source": "coverage/coverage-summary.json (job quality)"
+  },
+  "exploits_total": {
+    "value": 10,
+    "source": "docs/findings/results-main.json"
+  },
+  "exploits_fixed_on_main": {
+    "value": 10,
+    "source": "docs/findings/results-main.json (job exploits-main)"
+  },
+  "exploits_land_on_v0": {
+    "value": 10,
+    "source": "docs/findings/results-v0.json (job exploits-v0)"
+  },
+  "pgtap_checks": {
+    "value": 6,
+    "source": "pgtap.txt (job exploits-main)"
+  },
+  "pgtap_failed_on_v0": {
+    "value": 5,
+    "source": "pgtap-v0.txt (job exploits-v0)"
+  },
+  "zap_fail": {
+    "value": 0,
+    "source": "zap.txt (job exploits-main)"
+  },
+  "zap_pass": {
+    "value": 60,
+    "source": "zap.txt (job exploits-main)"
+  },
+  "zap_warn": {
+    "value": 7,
+    "source": "zap.txt (job exploits-main)"
+  }
+}

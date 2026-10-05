@@ -1,0 +1,221 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "sample/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  quality:
+    name: Types, lint, unit tests, coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Unit tests with the 80 percent line coverage gate
+        run: npm run test:coverage
+      - name: Summarise
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("coverage/unit-results.json"))
+          c = json.load(open("coverage/coverage-summary.json"))["total"]["lines"]["pct"]
+          print(f"unit tests passed: {r['numPassedTests']} of {r['numTotalTests']}")
+          print()
+          print(f"line coverage on lib and server actions: {c}%")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unit-results
+          path: coverage/unit-results.json
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          retention-days: 14
+
+  scans:
+    name: Semgrep, gitleaks, osv-scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Semgrep (fails on ERROR)
+        run: |
+          pip install semgrep
+          semgrep scan --config p/typescript --config p/nextjs --config semgrep/cedar.yml \
+            --exclude node_modules --exclude .next --metrics=off --severity ERROR --error \
+            --sarif --output semgrep.sarif
+      - name: gitleaks over full history
+        run: docker run --rm -v "$PWD":/repo zricethezav/gitleaks:latest detect --source /repo --log-opts="--all" --redact --no-banner
+      - name: osv-scanner (fails on high or critical)
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:latest scan source -L /src/package-lock.json --format json > out/osv-report.json || true
+          python3 scripts/osv-gate.py out/osv-report.json | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/osv-gate.py out/osv-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scanner-output
+          path: |
+            semgrep.sarif
+            out/osv-report.json
+          retention-days: 14
+
+  exploits-main:
+    name: exploits-main (all ten must pass), pgTAP, smoke test, ZAP baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Start Supabase and stripe-mock
+        run: |
+          supabase start
+          docker compose up -d stripe-mock
+          ./scripts/local-env.sh
+      - name: Exploit suite on fixed code
+        run: ./scripts/exploit-job.sh . pass main
+      - name: No service role key in the browser bundle
+        run: ./scripts/check-bundle.sh .next/static
+      - name: pgTAP
+        run: supabase test db | tee pgtap.txt
+      - name: Playwright smoke test
+        run: |
+          set -a; . ./.env; set +a
+          npx next start -p 3000 > app.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs localhost:3000/api/health >/dev/null && break; sleep 1; done
+          npx playwright test
+      - name: OWASP ZAP baseline
+        run: |
+          mkdir -p docs/findings/zap && chmod 777 docs/findings/zap
+          docker run --rm --network host -v "$PWD/docs/findings/zap":/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:3000 -r zap-report.html -J zap-report.json -I | tee zap.txt
+          tail -1 zap.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY'
+          import re, sys
+          line = open("zap.txt").read().strip().splitlines()[-1]
+          fails = int(re.search(r"FAIL-NEW: (\d+)", line).group(1))
+          sys.exit(1 if fails else 0)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-main
+          path: |
+            docs/findings/results-main.json
+            docs/findings/zap/
+            pgtap.txt
+            zap.txt
+          retention-days: 14
+
+  exploits-v0:
+    name: exploits-v0 (all ten must succeed against the tag)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { ref: v0-as-shipped, path: v0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Start Supabase and stripe-mock
+        run: |
+          supabase start
+          docker compose up -d stripe-mock
+          ./scripts/local-env.sh
+      - name: Exploit suite on v0-as-shipped (expects every exploit to land)
+        run: ./scripts/exploit-job.sh v0 fail v0
+      - name: pgTAP on v0 (expects the RLS test to fail)
+        working-directory: v0
+        run: |
+          cp -R ../supabase/tests supabase/tests
+          set +e
+          supabase test db 2>&1 | tee ../pgtap-v0.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          grep -q "# Failed test" ../pgtap-v0.txt || { echo "pgTAP failed for the wrong reason"; exit 1; }
+          [ "$status" -ne 0 ] || { echo "pgTAP passed on v0, so it does not detect F01"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-v0
+          path: |
+            docs/findings/results-v0.json
+            pgtap-v0.txt
+          retention-days: 14
+
+  portfolio:
+    name: Images and one-page PDF
+    runs-on: ubuntu-latest
+    needs: [quality, exploits-main, exploits-v0]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: pip install pillow markdown pyyaml
+      - uses: actions/download-artifact@v4
+        with: { name: results-main, path: dl-main }
+      - uses: actions/download-artifact@v4
+        with: { name: results-v0, path: dl-v0 }
+      - uses: actions/download-artifact@v4
+        with: { name: unit-results, path: coverage }
+      - uses: actions/download-artifact@v4
+        with: { name: coverage-summary, path: coverage }
+      - name: Use the results from this run
+        run: |
+          mkdir -p docs/findings
+          cp dl-main/docs/findings/results-main.json docs/findings/
+          cp dl-v0/docs/findings/results-v0.json docs/findings/
+          cp dl-main/pgtap.txt dl-main/zap.txt dl-v0/pgtap-v0.txt .
+      - run: python3 scripts/render-report.py
+      - run: python3 scripts/collect-facts.py
+      - run: make images
+      - run: make pdf
+      - name: Check sizes and page count
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          for n in (1, 2, 3):
+              size = Image.open(f"docs/portfolio/img-{n}.png").size
+              print(n, size)
+              assert size == (1000, 750), size
+          PY
+          pdfinfo docs/portfolio/case-study.pdf | tee -a "$GITHUB_STEP_SUMMARY"
+          pdfinfo docs/portfolio/case-study.pdf | grep -q "Pages: *1$"
+          ! pdftotext docs/portfolio/case-study.pdf - | grep -Ei "http|@|github"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portfolio
+          path: docs/portfolio/
+          retention-days: 14

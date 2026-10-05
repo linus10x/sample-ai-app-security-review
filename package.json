@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:unit": "vitest run --config vitest.config.mts",
-    "test:coverage": "vitest run --config vitest.config.mts --coverage",
+    "test:coverage": "vitest run --config vitest.config.mts --coverage --reporter=default --reporter=json --outputFile.json=coverage/unit-results.json",
     "test:exploits": "vitest run --config vitest.exploits.config.mts",
     "test:e2e": "playwright test",
     "seed": "tsx scripts/seed.ts"

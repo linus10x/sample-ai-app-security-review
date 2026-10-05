@@ -1,0 +1,94 @@
+{
+  "label": "v0",
+  "expect": "fail",
+  "findings": [
+    {
+      "id": "F01",
+      "tests": [
+        "F01 row level security on orders a signed-in user can read only their own organisation's orders"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected [ { …(2) }, { …(2) }, { …(2) }, …(3) ] to deeply equal []"
+    },
+    {
+      "id": "F02",
+      "tests": [
+        "F02 service role key stays out of the browser bundle no file under .next/static contains the service role key or its name"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected [ Array(1) ] to deeply equal []"
+    },
+    {
+      "id": "F03",
+      "tests": [
+        "F03 webhook signature is verified rejects unsigned and wrongly signed events, accepts a correctly signed one"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected 200 to be 400 // Object.is equality"
+    },
+    {
+      "id": "F04",
+      "tests": [
+        "F04 webhook is idempotent a replayed, validly signed event fulfils the order once"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected 2 to be 1 // Object.is equality"
+    },
+    {
+      "id": "F05",
+      "tests": [
+        "F05 price comes from the server ignores a price sent by the browser"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected 2 to be 900 // Object.is equality"
+    },
+    {
+      "id": "F06",
+      "tests": [
+        "F06 invoice download checks ownership lets the owner download their invoice and refuses another organisation"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected +0 to be 1 // Object.is equality"
+    },
+    {
+      "id": "F07",
+      "tests": [
+        "F07 import from URL does not reach internal addresses refuses a loopback URL and never contacts it"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected 200 to be greater than or equal to 400"
+    },
+    {
+      "id": "F08",
+      "tests": [
+        "F08 product notes cannot run script shows markup as text and does not execute it"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected 1 to be undefined"
+    },
+    {
+      "id": "F09",
+      "tests": [
+        "F09 errors do not leak internals returns a generic error with a correlation id, for a database failure and a parse failure"
+      ],
+      "outcome": "fail",
+      "reason": "AssertionError: expected '{\"error\":\"invalid input syntax for ty…' not to match /\\bat\\s+\\S+\\s+\\(|node_modules|\\.ts:\\d…/i"
+    },
+    {
+      "id": "F10",
+      "tests": [
+        "F10 security headers /login sends the standard set",
+        "F10 security headers /api/health sends the standard set"
+      ],
+      "outcome": "fail",
+      "reason": "TypeError: .toMatch() expects to receive a string, but got object"
+    }
+  ],
+  "matched": 10,
+  "total": 10,
+  "vitest": {
+    "tests": 11,
+    "passed": 0,
+    "failed": 11
+  }
+}
