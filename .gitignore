@@ -13,3 +13,6 @@ supabase/.branches/
 .DS_Store
 tmp/
 tsconfig.tsbuildinfo
+.audit/
+docs/findings/zap/
+docs/findings/osv-report.json

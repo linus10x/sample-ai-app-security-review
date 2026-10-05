@@ -14,5 +14,8 @@ STRIPE_API_PORT=12111
 STRIPE_API_PROTOCOL=http
 APP_URL=http://localhost:3000
 IMPORT_ALLOWED_HOSTS=catalog.example.com
+# Armed trap for F02. Nothing in the fixed app reads this variable. If code ever starts reading it,
+# the service role key is inlined into the browser bundle and the bundle check fails.
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
 ENV
 echo "wrote .env"

@@ -1,0 +1,27 @@
+rules:
+  - id: cedar-no-dangerously-set-inner-html
+    languages: [typescript]
+    severity: ERROR
+    message: Rendering stored text as HTML is stored XSS (F08). Render it as text.
+    pattern: <$EL ... dangerouslySetInnerHTML={...} />
+  - id: cedar-no-service-role-in-public-env
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: A NEXT_PUBLIC_ variable is shipped to the browser. Never put the service role key in one (F02).
+    pattern-regex: NEXT_PUBLIC_[A-Z_]*SERVICE_ROLE
+  - id: cedar-no-unchecked-fetch-in-routes
+    languages: [typescript]
+    severity: ERROR
+    message: Server-side fetch of a caller-supplied URL must go through safeFetch (F07).
+    paths:
+      include: ["app/api/**"]
+    pattern: fetch($URL, ...)
+  - id: cedar-no-error-stack-in-response
+    languages: [typescript]
+    severity: ERROR
+    message: Do not send stack traces to the caller (F09). Log them with a correlation id.
+    pattern-either:
+      - pattern: "{ ..., stack: $E.stack, ... }"
+      - pattern: $E.stack
+    paths:
+      include: ["app/**"]
