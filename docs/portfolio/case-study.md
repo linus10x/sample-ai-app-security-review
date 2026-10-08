@@ -10,7 +10,7 @@ Our B2B ordering app was built with Claude Code over several months. Before real
 
 - A small multi-tenant ordering app with sign-up, product list, cart, Stripe Checkout, order history, invoice download, an admin page and an import-from-URL feature.
 - The app as a fast AI-assisted build might ship it, tagged `v0-as-shipped`, with ten seeded flaws.
-- One exploit test per flaw. Each fails on the old code and passes on the fixed code, with one fix commit per finding.
+- One exploit test per flaw. Each fails on the old code and passes on the fixed code, with one fix commit per finding. The F05 and F04 follow-ups are in merge 51f1940.
 - A written findings report ranked by severity, with evidence for each item and a 30-day cleanup plan.
 - A CI pipeline that runs the tests and scanners and fails if any flaw comes back.
 
