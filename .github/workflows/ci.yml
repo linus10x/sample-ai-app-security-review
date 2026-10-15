@@ -21,8 +21,8 @@ jobs:
     name: Types, lint, unit tests, coverage gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci
       - run: npm run typecheck
@@ -39,12 +39,12 @@ jobs:
           print()
           print(f"line coverage on lib and server actions: {c}%")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unit-results
           path: coverage/unit-results.json
           retention-days: 14
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-summary
           path: coverage/coverage-summary.json
@@ -54,9 +54,9 @@ jobs:
     name: Semgrep, gitleaks, osv-scanner
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with: { fetch-depth: 0 }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: { python-version: "3.12" }
       - name: Semgrep (fails on ERROR)
         run: |
@@ -72,7 +72,7 @@ jobs:
           docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.6.0 scan source -L /src/package-lock.json --format json > out/osv-report.json || true
           python3 scripts/osv-gate.py out/osv-report.json | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/osv-gate.py out/osv-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: scanner-output
@@ -85,12 +85,12 @@ jobs:
     name: exploits-main (all ten must pass), pgTAP, smoke test, ZAP baseline
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with: { version: "2.119.0" }
       - name: Start Supabase and stripe-mock
         run: |
@@ -121,7 +121,7 @@ jobs:
           fails = int(re.search(r"FAIL-NEW: (\d+)", line).group(1))
           sys.exit(1 if fails else 0)
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: results-main
@@ -136,14 +136,14 @@ jobs:
     name: exploits-v0 (all ten must succeed against the tag)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with: { ref: v0-as-shipped, path: v0 }
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         with: { version: "2.119.0" }
       - name: Start Supabase and stripe-mock
         run: |
@@ -162,7 +162,7 @@ jobs:
           set -e
           grep -q "# Failed test" ../pgtap-v0.txt || { echo "pgTAP failed for the wrong reason"; exit 1; }
           [ "$status" -ne 0 ] || { echo "pgTAP passed on v0, so it does not detect F01"; exit 1; }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: results-v0
@@ -176,22 +176,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality, exploits-main, exploits-v0]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with: { python-version: "3.12" }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: pip install pillow markdown pyyaml
       - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: results-main, path: dl-main }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: results-v0, path: dl-v0 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: unit-results, path: coverage }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: coverage-summary, path: coverage }
       - name: Use the results from this run
         run: |
@@ -226,7 +226,7 @@ jobs:
               echo "img-$n shows an email, a link or a GitHub mention"; cat ocr-$n.txt; exit 1
             fi
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portfolio
           path: |
