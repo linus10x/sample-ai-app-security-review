@@ -185,13 +185,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: pip install pillow markdown pyyaml
       - run: sudo apt-get update && sudo apt-get install -y poppler-utils tesseract-ocr
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: results-main, path: dl-main }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: results-v0, path: dl-v0 }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: unit-results, path: coverage }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: coverage-summary, path: coverage }
       - name: Use the results from this run
         run: |
