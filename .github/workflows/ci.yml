@@ -39,12 +39,12 @@ jobs:
           print()
           print(f"line coverage on lib and server actions: {c}%")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unit-results
           path: coverage/unit-results.json
           retention-days: 14
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-summary
           path: coverage/coverage-summary.json
@@ -72,7 +72,7 @@ jobs:
           docker run --rm -v "$PWD":/src ghcr.io/google/osv-scanner:v2.6.0 scan source -L /src/package-lock.json --format json > out/osv-report.json || true
           python3 scripts/osv-gate.py out/osv-report.json | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/osv-gate.py out/osv-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: scanner-output
@@ -121,7 +121,7 @@ jobs:
           fails = int(re.search(r"FAIL-NEW: (\d+)", line).group(1))
           sys.exit(1 if fails else 0)
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: results-main
@@ -162,7 +162,7 @@ jobs:
           set -e
           grep -q "# Failed test" ../pgtap-v0.txt || { echo "pgTAP failed for the wrong reason"; exit 1; }
           [ "$status" -ne 0 ] || { echo "pgTAP passed on v0, so it does not detect F01"; exit 1; }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: results-v0
@@ -226,7 +226,7 @@ jobs:
               echo "img-$n shows an email, a link or a GitHub mention"; cat ocr-$n.txt; exit 1
             fi
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: portfolio
           path: |
